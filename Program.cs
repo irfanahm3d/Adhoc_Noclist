@@ -9,12 +9,28 @@ namespace Adhoc_Noclist
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
+            int statusCode = 0;
             // create singleton
             BadsecClient client = new BadsecClient();
-            
-                client.GetUsers().Wait();
+
+            try
+            {
+                string jsonString = client.GetUsers().Result;
+                Console.Out.WriteLine(jsonString);
+            }
+            catch (AggregateException aggregateException)
+            {
+                foreach (Exception ex in aggregateException.InnerExceptions)
+                {
+                    Console.Error.WriteLine(ex.Message);
+                }
+
+                statusCode = -1;
+            }
+
+            return statusCode;
         }
     }
 }
