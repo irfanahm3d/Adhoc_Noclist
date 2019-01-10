@@ -1,19 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net.Http;
 
-namespace Adhoc_Noclist
+namespace Adhoc.Noclist
 {
     class Program
     {
         static int Main(string[] args)
         {
             int statusCode = 0;
-            // create singleton
-            BadsecClient client = new BadsecClient();
+            HttpClient httpClient = new HttpClient();
+            BadsecClient client = new BadsecClient(httpClient);
 
             try
             {

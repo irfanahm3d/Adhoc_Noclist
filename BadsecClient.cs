@@ -5,19 +5,21 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+
 using Newtonsoft.Json;
 
-namespace Adhoc_Noclist
+namespace Adhoc.Noclist
 {
     class BadsecClient
     {
-        private static readonly HttpClient client = new HttpClient();
-        private const string AuthTokenHeader = "Badsec-Authentication-Token";
-        private const string ChecksumRequestHeader = "X-Request-Checksum";
-        private const string BaseUri = "http://localhost:8888/";
-        private const string UsersUriPath = "users";
-        private const string AuthUriPath = "auth";
-        private const int RetryLimit = 3;
+        internal const string AuthTokenHeader = "Badsec-Authentication-Token";
+        internal const string ChecksumRequestHeader = "X-Request-Checksum";
+        internal const string BaseUri = "http://localhost:8888/";
+        internal const string UsersUriPath = "users";
+        internal const string AuthUriPath = "auth";
+        internal const int RetryLimit = 3;
+
+        private readonly HttpClient Client;
 
         /// <summary>
         /// A list of time delays to be used for the retry methodology.
@@ -33,9 +35,10 @@ namespace Adhoc_Noclist
         /// <summary>
         /// Constructor
         /// </summary>
-        public BadsecClient()
+        public BadsecClient(HttpClient client)
         {
-            client.BaseAddress = new Uri(BaseUri);
+            this.Client = client;
+            this.Client.BaseAddress = new Uri(BaseUri);
         }
 
         /// <summary>
@@ -63,7 +66,7 @@ namespace Adhoc_Noclist
         /// <returns>
         /// An HttpResponse with only headers that contains the authorization token
         /// </returns>
-        async Task<HttpResponseMessage> GetAuth()
+        internal async Task<HttpResponseMessage> GetAuth()
         {
             return await GetHttpWithRetry(
                 AuthUriPath,
@@ -75,7 +78,7 @@ namespace Adhoc_Noclist
         /// </summary>
         /// <param name="checksum">The checksum required for authorization</param>
         /// <returns>A complete HttpResponse containing the user list</returns>
-        async Task<HttpResponseMessage> GetUserList(string checksum)
+        internal async Task<HttpResponseMessage> GetUserList(string checksum)
         {
             return await GetHttpWithRetry(
                 UsersUriPath,
@@ -88,7 +91,7 @@ namespace Adhoc_Noclist
         /// </summary>
         /// <param name="response">The HttpResponse</param>
         /// <returns>The authorization token</returns>
-        string RetrieveTokenHeader(HttpResponseMessage response)
+        internal string RetrieveTokenHeader(HttpResponseMessage response)
         {
             string authToken = String.Empty;
             IEnumerable<string> tokenList = null;
@@ -105,7 +108,7 @@ namespace Adhoc_Noclist
         /// </summary>
         /// <param name="authToken">The authorization token</param>
         /// <returns>A string containing the checksum</returns>
-        string ComputeSHA256ChecksumFromToken(string authToken)
+        internal string ComputeSHA256ChecksumFromToken(string authToken)
         {
             using (SHA256 crypto = SHA256.Create())
             {
@@ -122,7 +125,7 @@ namespace Adhoc_Noclist
             }
         }
 
-        async Task<HttpResponseMessage> GetHttpWithRetry(
+        internal async Task<HttpResponseMessage> GetHttpWithRetry(
             string uriPath,
             HttpCompletionOption completionOption,
             string checksum = "")
@@ -143,14 +146,6 @@ namespace Adhoc_Noclist
                 try
                 {
                     response = await HttpRequest(request, completionOption);
-                    if (response.StatusCode == System.Net.HttpStatusCode.OK)
-                    {
-                        return response;
-                    }
-                    else
-                    {
-                        throw new Exception();
-                    }
                 }
                 catch (Exception e)
                 {
@@ -160,23 +155,29 @@ namespace Adhoc_Noclist
                 retry++;
             } while (retry < RetryLimit);
 
-            throw new AggregateException(exceptions);
+            if (exceptions.Count != 0)
+            {
+                throw new AggregateException(exceptions);
+            }
+
+            return response;
         }
 
-        async Task<HttpResponseMessage> HttpRequest(
+        internal async Task<HttpResponseMessage> HttpRequest(
             HttpRequestMessage request,
             HttpCompletionOption completionOption)
         {
             try
             {
-                return await client.SendAsync(request, completionOption);
+                return await this.Client.SendAsync(request, completionOption);
             }
             catch (TaskCanceledException taskException)
             {
                 if (!taskException.CancellationToken.IsCancellationReques‌​ted)
                 {
-                    throw new Exception("Timeout expired trying to reach the ButterCMS service.");
+                    throw new Exception("Timeout expired trying to reach BADSEC.");
                 }
+
                 throw taskException;
             }
             catch (HttpRequestException httpException)
