@@ -13,7 +13,7 @@ namespace Adhoc.Noclist
 
             try
             {
-                string jsonString = client.GetUsers().Result;
+                string jsonString = client.GetUsersList().Result;
                 Console.Out.WriteLine(jsonString);
             }
             catch (AggregateException aggregateException)

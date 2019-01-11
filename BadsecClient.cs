@@ -6,12 +6,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-using Newtonsoft.Json;
-
 namespace Adhoc.Noclist
 {
     class BadsecClient
     {
+        internal const string AuthFailureMessage = "Auth failed";
+        internal const string UserListRetrievalFailureMessage = "User list retrieval failed";
+
         internal const string AuthTokenHeader = "Badsec-Authentication-Token";
         internal const string ChecksumRequestHeader = "X-Request-Checksum";
         internal const string BadsecUri = "http://localhost:8888/";
@@ -45,27 +46,27 @@ namespace Adhoc.Noclist
         /// Gets the list of users.
         /// </summary>
         /// <returns>A string containing a list of users</returns>
-        public async Task<string> GetUsers()
+        public async Task<string> GetUsersList()
         {
             string userList = String.Empty;
 
             HttpResponseMessage authResponse = await GetAuth();
             if (authResponse.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception();
+                throw new Exception(AuthFailureMessage);
             }
 
             string authToken = RetrieveTokenHeader(authResponse);
             string checksum = ComputeSHA256ChecksumFromToken(authToken);
 
-            HttpResponseMessage userListResponse = await GetUserList(checksum);
+            HttpResponseMessage userListResponse = await GetUsers(checksum);
             if (userListResponse.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception();
+                throw new Exception(UserListRetrievalFailureMessage);
             }
 
             userList = await userListResponse.Content.ReadAsStringAsync();
-            return JsonConvert.SerializeObject(userList, Formatting.Indented);
+            return ConvertStringToJson(userList);
         }
         
         /// <summary>
@@ -82,11 +83,11 @@ namespace Adhoc.Noclist
         }
 
         /// <summary>
-        /// Get call to the /user endpoint.
+        /// Get call to the /users endpoint.
         /// </summary>
         /// <param name="checksum">The checksum required for authorization</param>
         /// <returns>A complete HttpResponse containing the user list</returns>
-        internal async Task<HttpResponseMessage> GetUserList(string checksum)
+        internal async Task<HttpResponseMessage> GetUsers(string checksum)
         {
             return await GetHttpWithRetry(
                 UsersEndpoint,
@@ -133,6 +134,35 @@ namespace Adhoc.Noclist
             }
         }
 
+        /// <summary>
+        /// Converts the newline delimited string into a json format.
+        /// </summary>
+        /// <param name="list">A newline delimited list of user ids</param>
+        /// <returns>A json format user id list</returns>
+        internal string ConvertStringToJson(string stringList)
+        {
+            string[] userIds = 
+                stringList.Split(new []{ '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            StringBuilder jsonString = new StringBuilder();
+            jsonString.Append("[");
+            for (int idx = 0; idx < userIds.Length; idx++)
+            {
+                if (idx == userIds.Length - 1)
+                {
+                    // don't add the comma and space for the last entry
+                    jsonString.Append(String.Concat("\"", userIds[idx], "\"")); 
+                }
+                else
+                {
+                    jsonString.Append(String.Concat("\"", userIds[idx], "\"", ", "));
+                }                
+            }
+            jsonString.Append("]");
+
+            return jsonString.ToString();
+        }
+
         internal async Task<HttpResponseMessage> GetHttpWithRetry(
             string uriPath,
             HttpCompletionOption completionOption,
@@ -167,7 +197,7 @@ namespace Adhoc.Noclist
                 retry++;
             } while (retry < RetryLimit);
 
-            if (response.StatusCode != System.Net.HttpStatusCode.OK &&
+            if (response == null &&
                 exceptions.Count != 0)
             {
                 throw new AggregateException(exceptions);
