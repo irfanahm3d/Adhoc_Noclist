@@ -14,9 +14,9 @@ namespace Adhoc.Noclist
     {
         internal const string AuthTokenHeader = "Badsec-Authentication-Token";
         internal const string ChecksumRequestHeader = "X-Request-Checksum";
-        internal const string BaseUri = "http://localhost:8888/";
-        internal const string UsersUriPath = "users";
-        internal const string AuthUriPath = "auth";
+        internal const string BadsecUri = "http://localhost:8888/";
+        internal const string UsersEndpoint = "users";
+        internal const string AuthEndpoint = "auth";
         internal const int RetryLimit = 3;
 
         private readonly HttpClient Client;
@@ -38,7 +38,7 @@ namespace Adhoc.Noclist
         public BadsecClient(HttpClient client)
         {
             this.Client = client;
-            this.Client.BaseAddress = new Uri(BaseUri);
+            this.Client.BaseAddress = new Uri(BadsecUri);
         }
 
         /// <summary>
@@ -48,15 +48,23 @@ namespace Adhoc.Noclist
         public async Task<string> GetUsers()
         {
             string userList = String.Empty;
+
             HttpResponseMessage authResponse = await GetAuth();
-            string authToken = RetrieveTokenHeader(authResponse);
-            string checksum = ComputeSHA256ChecksumFromToken(authToken);
-            HttpResponseMessage userListResponse = await GetUserList(checksum);
-            if (userListResponse.StatusCode == System.Net.HttpStatusCode.OK)
+            if (authResponse.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                userList = await userListResponse.Content.ReadAsStringAsync();
+                throw new Exception();
             }
 
+            string authToken = RetrieveTokenHeader(authResponse);
+            string checksum = ComputeSHA256ChecksumFromToken(authToken);
+
+            HttpResponseMessage userListResponse = await GetUserList(checksum);
+            if (userListResponse.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception();
+            }
+
+            userList = await userListResponse.Content.ReadAsStringAsync();
             return JsonConvert.SerializeObject(userList, Formatting.Indented);
         }
         
@@ -69,7 +77,7 @@ namespace Adhoc.Noclist
         internal async Task<HttpResponseMessage> GetAuth()
         {
             return await GetHttpWithRetry(
-                AuthUriPath,
+                AuthEndpoint,
                 HttpCompletionOption.ResponseHeadersRead);
         }
 
@@ -81,7 +89,7 @@ namespace Adhoc.Noclist
         internal async Task<HttpResponseMessage> GetUserList(string checksum)
         {
             return await GetHttpWithRetry(
-                UsersUriPath,
+                UsersEndpoint,
                 HttpCompletionOption.ResponseContentRead,
                 checksum);
         }
@@ -113,7 +121,7 @@ namespace Adhoc.Noclist
             using (SHA256 crypto = SHA256.Create())
             {
                 byte[] hash = crypto.ComputeHash(
-                    Encoding.UTF8.GetBytes(String.Concat(authToken, "/", UsersUriPath)));
+                    Encoding.UTF8.GetBytes(String.Concat(authToken, "/", UsersEndpoint)));
 
                 StringBuilder checksum = new StringBuilder();
                 for (int i = 0; i < hash.Length; i++)
@@ -146,6 +154,10 @@ namespace Adhoc.Noclist
                 try
                 {
                     response = await HttpRequest(request, completionOption);
+                    if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                    {
+                        break;
+                    }
                 }
                 catch (Exception e)
                 {
@@ -155,7 +167,8 @@ namespace Adhoc.Noclist
                 retry++;
             } while (retry < RetryLimit);
 
-            if (exceptions.Count != 0)
+            if (response.StatusCode != System.Net.HttpStatusCode.OK &&
+                exceptions.Count != 0)
             {
                 throw new AggregateException(exceptions);
             }
@@ -173,11 +186,6 @@ namespace Adhoc.Noclist
             }
             catch (TaskCanceledException taskException)
             {
-                if (!taskException.CancellationToken.IsCancellationReques‌​ted)
-                {
-                    throw new Exception("Timeout expired trying to reach BADSEC.");
-                }
-
                 throw taskException;
             }
             catch (HttpRequestException httpException)
