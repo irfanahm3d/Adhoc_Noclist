@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{87C4303E-BE69-4D73-9169-A06F42DAEB4A}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Adhoc_Noclist</RootNamespace>
+    <RootNamespace>Adhoc.Noclist</RootNamespace>
     <AssemblyName>Adhoc_Noclist</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

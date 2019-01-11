@@ -16,16 +16,17 @@ namespace Adhoc.Noclist
                 string jsonString = client.GetUsersList().Result;
                 Console.Out.WriteLine(jsonString);
             }
-            catch (AggregateException aggregateException)
+            catch (Exception ex)
             {
-                foreach (Exception ex in aggregateException.InnerExceptions)
+                var aggEx = (AggregateException)ex.InnerException;
+                foreach (Exception e in aggEx.InnerExceptions)
                 {
-                    Console.Error.WriteLine(ex.Message);
+                    Console.Error.WriteLine(e.Message);
                 }
 
                 statusCode = -1;
             }
-
+            
             return statusCode;
         }
     }

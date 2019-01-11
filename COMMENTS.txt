@@ -1,0 +1,22 @@
+
+You will need a Windows 8, 8.1 or 10 OS to build and run this solution
+This solution is built on .NET Framework 4.6.1
+
+------------------------  DOWNLOAD  -----------------------------------
+
+Download Visual Studio 2017 in which case you will not need to 
+separately download .NET Framework
+https://visualstudio.microsoft.com/downloads/
+Download Community Edition and select C# development to download the
+relevant SDKs.
+
+-----------------------  BUILD & RUN  --------------------------------
+
+1) Open the solution.
+2) Press F6 to build the entire solution.
+3) Press F5 to run the console application.
+
+-----------------------  UNIT TESTS  ---------------------------------
+
+1) In the top menu go to Test->Windows->Test Explorer
+2) Press 'Run All' to run all the tests.
